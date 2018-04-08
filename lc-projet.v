@@ -389,10 +389,25 @@ Definition pS:pnat->pnat := fun n:pnat => fun T => fun (f:T->T) (x:T) => f (n T 
 Compute pO.
 Compute pS pO.
 
+(*Redefinition de la notation pour faciliter les tests:*)
+Fixpoint iter (n:nat) :=
+  match n with
+    | 0 => pO
+    | S p => pS (iter p)
+  end.
+
+Definition pnat_of_nat : nat -> pnat := fun n => iter n.
+
+Notation "[ X ]N" := (pnat_of_nat X) (at level 5).
+Compute [3]N.
+Compute [0]N.
+Compute [10]N.
+(*On peut désormais utiliser [X]N pour écrire le pnat X.*)
+
 Definition padd:pnat->pnat->pnat := fun n m :pnat => fun T:Set => fun f x => n T f (m T f x).
 
-Compute padd (pS pO) (pS (pS pO)). (* 1 + 2 = 3 *)
-Compute padd pO pO. (* 0 + 0 = 0 *)
+Compute padd [1]N [2]N. (* 1 + 2 = 3 *)
+Compute padd [0]N [0]N. (* 0 + 0 = 0 *)
 
 Lemma padd_associativite : forall a b c :pnat, padd (padd a b) c = padd a (padd b c).
 Proof.
@@ -404,12 +419,12 @@ Qed.
 
 Definition pmul:pnat->pnat->pnat := fun n m :pnat => fun T:Set => fun f =>  n T (m T f).
 
-Compute pmul (pS (pS pO)) (pS (pS (pS pO))). (* 2 * 3 = 6 *)
+Compute pmul [2]N [3]N. (* 2 * 3 = 6 *)
 
 Definition ptz:pnat->pbool := fun n:pnat => fun T:Set =>  fun x y =>  n T (fun z => y) x.
 
-Compute ptz pO.
-Compute ptz (pS pO).
+Compute ptz [O]N.
+Compute ptz [1]N.
 
 (* Preuve que ptz renvoie ptr pour l'entier de Church 0. *)
 Lemma p_ptz_ptr : (forall c:pnat, c=pO -> ptz c = ptr).
@@ -441,5 +456,29 @@ Proof.
   induction c ; tauto.
 Qed.
 
-(* 2. *)
 
+(* 2. *)
+Definition pplus : pnat -> pnat -> pnat := fun n m : pnat => n pnat pS m.
+(*
+On peut voir cette version de l'addition n+m comme une application de n fois la fonction successeur pS à m.
+ *)
+Compute pplus [4]N [3]N.
+Compute pplus [3]N [0]N.
+
+(* 3. *)
+(* Définition d'une fonction couple_successeur qui pour un couple (x,y) rend le couple (y,S y) ie. renvoie y et son successeur *)
+Definition couple_successeur : pprod pnat pnat -> pprod pnat pnat := fun c => ppair pnat pnat (c pnat (fun a b => b)) (c pnat (fun a b => pS b)).
+Compute ppair pnat pnat [1]N [2]N.
+Compute couple_successeur (ppair pnat pnat [1]N [2]N).
+
+(* Définition d'une fonction couple_successeur_n qui pour un couple (x,y) lui applique n fois la fonction couple_successeur *)
+Definition couple_successeur_n : pprod pnat pnat -> pnat -> pprod pnat pnat := fun c n => n (pprod pnat pnat) (couple_successeur) c.
+Compute couple_successeur_n (ppair pnat pnat [0]N [0]N) [5]N.
+
+(* Définition d'une fonction pour un pnat n calcule le prédecesseur:
+L'idée est d'utiliser la fonction couple_successeur avec en argument le couple (0,0) et l'entier n pour ainsi obtenir le couple (n-1,n). On a ainsi facilement accès au prédecceseur de n*)
+Definition predecesseur : pnat -> pnat := fun n => couple_successeur_n (ppair pnat pnat [0]N [0]N) n pnat (fun a b => a).
+Compute predecesseur [5]N.
+Compute predecesseur [1]N.
+
+(* 4. *)
